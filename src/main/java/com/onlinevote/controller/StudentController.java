@@ -27,6 +27,7 @@ public class StudentController {
     @Autowired
     private ModelMapper modelMapper;
 
+    //add student controller
     @PostMapping("/addStudent")
     public ResponseEntity<ApiResponse<StudentDto>> addStudent(@Valid @RequestBody StudentDto studentDto){
         log.info("========Inside Student controller of addStudent Method============");
