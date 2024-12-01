@@ -9,6 +9,8 @@ import lombok.Data;
 @Data
 public class StudentDto  {
 
+    private Long id;
+
     @NotBlank(message="Registration Number must not be blank")
     @NotNull(message="Registration should not be null")
     private String regno;
