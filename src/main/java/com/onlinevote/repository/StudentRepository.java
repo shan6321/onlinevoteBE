@@ -11,6 +11,5 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByRegno(String regno);
     Optional<Student> findByEmail(String email);
     Student findOneByRegnoIgnoreCaseAndPassword(String regno, String password);
-
-
+    Optional<Object> findByRegnoOrEmail(String regno, String email);
 }

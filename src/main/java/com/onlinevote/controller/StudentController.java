@@ -3,6 +3,8 @@ package com.onlinevote.controller;
 import com.onlinevote.dto.StudentDto;
 import com.onlinevote.entity.ApiResponse;
 import com.onlinevote.entity.Student;
+import com.onlinevote.exception.RecordNotInserted;
+import com.onlinevote.repository.StudentRepository;
 import com.onlinevote.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +12,10 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -24,6 +29,8 @@ public class StudentController {
 
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    private StudentRepository studentRepository;
 
     @PostMapping("/addStudent")
     public ResponseEntity<ApiResponse<StudentDto>> addStudent(@Valid @RequestBody StudentDto studentDto){
@@ -68,6 +75,16 @@ public class StudentController {
         ApiResponse<List<StudentDto>> response = new ApiResponse<>(studentDtos, "List all Students details successfully", true);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/bulkUploadStudent")
+    public ResponseEntity<Map<String, Object>> uploadStudentExcel(@RequestParam("file") MultipartFile file) {
+        log.info("========Inside StudentController of bulkUploadStudent Method============");
+
+        // Parse Excel and validate/save students
+        Map<String, Object> response = studentService.parseAndSaveExcelFile(file);
+        return ResponseEntity.ok(response);
+    }
+
 
 
 }

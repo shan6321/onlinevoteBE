@@ -10,13 +10,18 @@ import com.onlinevote.exception.RecordNotInserted;
 import com.onlinevote.exception.UserNotFound;
 import com.onlinevote.repository.StudentRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.*;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static com.onlinevote.constant.OnlineVoteConstant.formattedServerDateTime;
 import static com.onlinevote.utils.DateTimeUtil.getFormattedUtcDateTime;
@@ -111,10 +116,67 @@ public class StudentService {
             throw e;
         }
     }
-
     public List<Student> getAllStudents() {
         log.info("Fetching all students from the database");
         return studentRepository.findAll();
     }
+
+    public Map<String, Object> parseAndSaveExcelFile(MultipartFile file) {
+        List<Student> savedStudents = new ArrayList<>();
+        List<Map<String, String>> validationErrors = new ArrayList<>();
+
+        try (InputStream inputStream = file.getInputStream()) {
+            Workbook workbook = WorkbookFactory.create(inputStream);
+            Sheet sheet = workbook.getSheetAt(0);
+
+            for (Row row : sheet) {
+                if (row.getRowNum() == 0) { // Skip the header row
+                    continue;
+                }
+                try {
+                    Student student = new Student();
+                    student.setRegno(row.getCell(1).getStringCellValue());
+                    student.setPassword(row.getCell(2).getStringCellValue());
+                    student.setName(row.getCell(3).getStringCellValue());
+                    student.setEmail(row.getCell(4).getStringCellValue());
+                    student.setStatus(OnlineVoteConstant.OPEN);
+
+                    // Set time zone and default values
+                    ZoneId userZone = ZoneId.of("Asia/Kolkata");
+                    String formattedUtcDateTime = getFormattedUtcDateTime(userZone);
+
+                    student.setZoneId(userZone.toString());
+                    student.setUserUtcTime(formattedUtcDateTime);
+                    student.setCreatedAt(formattedServerDateTime);
+                    student.setCreatedBy(OnlineVoteConstant.USER);
+
+                    // Validate duplicates
+                    if (studentRepository.findByRegnoOrEmail(student.getRegno(), student.getEmail()).isPresent()) {
+                        Map<String, String> error = new HashMap<>();
+                        error.put("row", String.valueOf(row.getRowNum() + 1));
+                        error.put("message", "Duplicate regno or email: " + student.getRegno() + ", " + student.getEmail());
+                        validationErrors.add(error);
+                    } else {
+                        // Save valid student
+                        savedStudents.add(studentRepository.save(student));
+                    }
+                } catch (Exception e) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("row", String.valueOf(row.getRowNum() + 1));
+                    error.put("message", "Error processing row: " + e.getMessage());
+                    validationErrors.add(error);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse Excel file: " + e.getMessage());
+        }
+
+        // Prepare response
+        Map<String, Object> response = new HashMap<>();
+        response.put("savedStudents", savedStudents);
+        response.put("validationErrors", validationErrors);
+        return response;
+    }
+
 
 }
